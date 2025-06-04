@@ -51,19 +51,32 @@ for _ in range(num_steps):
 
     # -------- 7.1 真值推进（理想匀速） --------
     # x_true = A · x_true  ⇒ 位置累加真实速度
-    x_true = A @ x_true
+    x_true = A @ x_true     # 更新目标的真实状态 x_true，模拟其在没有任何噪声干扰下的理想运动。
     true_xy.append(x_true[:2, 0])   # 仅保存 (x, y)
 
     # -------- 7.2 生成带噪 GPS 测量 --------
-    # z = H·x_true + v，v ~ N(0, R)
+    # 模拟现实中带有噪声的 GPS 测量数据。
+    # 通过观测矩阵 H 提取真实状态中的位置部分。
+    # z = H·x_true + v，v ~ N(0, R)  
+    # 添加服从协方差矩阵 R 的高斯噪声，模拟测量误差。
+    # 将生成的测量值添加到 meas_xy 列表中，用于后续可视化。
     z = H @ x_true + np.random.multivariate_normal([0, 0], R).reshape(2, 1)
     meas_xy.append(z[:, 0])
 
     # -------- 7.3 Kalman Filter --------
     # ① 预测（Prediction）
+    # 用状态转移矩阵 A 对估计状态 x_est 进行预测，得到 x_pred。
+    # 更新协方差矩阵 P_pred，考虑过程噪声协方差 Q
     x_pred = A @ x_est
     P_pred = A @ P_est @ A.T + Q
+    
+    
     # ② 更新（Update）
+    # 利用当前的测量值 z 对预测状态进行校正，得到更准确的估计。
+    # 计算卡尔曼增益 K，权衡预测协方差和测量噪声。
+    # 更新状态估计 x_est，将预测值与测量值结合。
+    # 更新协方差矩阵 P_est，反映新的不确定性。
+    # 将更新后的估计位置添加到 kf_xy 列表中，用于后续可视化。
     K = P_pred @ H.T @ np.linalg.inv(H @ P_pred @ H.T + R)  # 卡尔曼增益
     x_est = x_pred + K @ (z - H @ x_pred)                   # 校正状态
     P_est = (np.eye(4) - K @ H) @ P_pred                    # 校正协方差
